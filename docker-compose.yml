@@ -1,0 +1,46 @@
+version: '3'
+services:
+  discovery:
+    image: marketplace/eureka-server
+    container_name: eureka-server
+    build:
+      context: ./eureka-server
+      dockerfile: Dockerfile
+    ports:
+    - 8761:8761
+  gateway:
+    image: marketplace/zuul-server
+    container_name: zuul-server
+    build:
+      context: ./zuul-server
+      dockerfile: Dockerfile
+    ports:
+    - 8762:8762
+    depends_on:
+    - discovery
+    links:
+    - discovery:discovery
+  auth:
+    image: marketplace/auth-service
+    container_name: auth-service
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    ports:
+    - 8763:8763
+    depends_on:
+    - discovery
+    links:
+    - discovery:discovery
+  catalog:
+    image: marketplace/catalog-service
+    container_name: catalog-service
+    build:
+      context: ./catalog-service
+      dockerfile: Dockerfile
+    ports:
+    - 8100:8100
+    depends_on:
+    - discovery
+    links:
+    - discovery:discovery
