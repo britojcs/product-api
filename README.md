@@ -7,7 +7,7 @@ This project demonstrates basic CRUD operations for a Product with the following
 - Delete a product
 - Fetch a product by id
 - Fetch all products
-- Search by title and description
+- Search by all product fields
 - Batch creation of products
 - Sorting on all fields
 - Pagination
@@ -50,8 +50,6 @@ There are 4 micro services
 | catalog       | /products/{id}          				| /api/products/{id}  					  | PATCH  | Update a product                    |
 | catalog       | /products/{id}      					| /api/products/{id}   					  | DELETE | Delete a product                    |
 | catalog       | /products/batch           			| /api/products/batch  					  | POST   | Add a batch of products             |
-| catalog       | /products/search/findByTitle    		| /api/products/search/findByTitle  	  | GET    | Search products by title            |
-| catalog       | /products/search/findByDescription    | /api/products/search/findByDescription  | GET    | Search products by description      |
 | auth          | /							  		    | /auth								 	  | GET    | Authenticate and get a bearer token |
 
 

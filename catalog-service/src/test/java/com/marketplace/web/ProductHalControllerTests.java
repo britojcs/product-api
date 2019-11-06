@@ -8,9 +8,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +32,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -61,15 +64,18 @@ public class ProductHalControllerTests {
 
     // 3 elements returned by repository for Page #3
     List<Product> products = Arrays.asList(
-        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", 10000.0, "Blue"),
-        new Product(2L, "REP7876543", "Jeans", "Straight fit jeans", "REPLAY", 15000.0,
-            "Light Blue"),
-        new Product(3L, "BOS9987676", "Shirt", "Button Down Oxford", "BOSS", 12000.0, "White"));
+        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", BigDecimal.valueOf(10000.0),
+            "Blue"),
+        new Product(2L, "REP7876543", "Jeans", "Straight fit jeans", "REPLAY",
+            BigDecimal.valueOf(15000.0), "Light Blue"),
+        new Product(3L, "BOS9987676", "Shirt", "Button Down Oxford", "BOSS",
+            BigDecimal.valueOf(12000.0), "White"));
 
     // 15 Elements over 5 pages, 3 per page cas onfigured in pageable above
     Page<Product> productPage = new PageImpl<Product>(products, pageable, 15);
 
-    when(productRepository.findAll(ArgumentMatchers.any(Pageable.class))).thenReturn(productPage);
+    when(productRepository.findAll(ArgumentMatchers.any(), ArgumentMatchers.any(Pageable.class)))
+        .thenReturn(productPage);
 
     // Execute request
     mockMvc
@@ -110,8 +116,8 @@ public class ProductHalControllerTests {
   @Test
   public void testFindById() throws Exception {
 
-    when(productRepository.findById(1L)).thenReturn(Optional
-        .of(new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", 10000.0, "Blue")));
+    when(productRepository.findById(1L)).thenReturn(Optional.of(new Product(1L, "GAS1234567",
+        "Jeans", "Slim fit jeans", "GAS", BigDecimal.valueOf(15000.0), "Blue")));
 
     // Execute request
     mockMvc.perform(get("/products/1").accept(MarketPlaceMediaTypes.V1_HAL_UTF8)).andDo(print())
@@ -123,7 +129,7 @@ public class ProductHalControllerTests {
         .andExpect(jsonPath("$.ProductResource.title", is("Jeans")))
         .andExpect(jsonPath("$.ProductResource.description", is("Slim fit jeans")))
         .andExpect(jsonPath("$.ProductResource.brand", is("GAS")))
-        .andExpect(jsonPath("$.ProductResource.price", is(10000.0)))
+        .andExpect(jsonPath("$.ProductResource.price", is(15000.0)))
         .andExpect(jsonPath("$.ProductResource.color", is("Blue")))
 
         // Assert Resource links
@@ -154,6 +160,7 @@ public class ProductHalControllerTests {
         .andReturn();
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void testFindByTitle() throws Exception {
 
@@ -162,20 +169,22 @@ public class ProductHalControllerTests {
 
     // 3 elements returned by repository for Page #1
     List<Product> products = Arrays.asList(
-        new Product(3L, "BOS9987676", "Jeans", "Relaxed fit jeans", "BOSS", 12000.0, "Black"),
-        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", 10000.0, "Blue"),
-        new Product(2L, "REP7876543", "Jeans", "Straight fit jeans", "REPLAY", 15000.0,
-            "Light Blue"));
+        new Product(3L, "BOS9987676", "Jeans", "Relaxed fit jeans", "BOSS",
+            BigDecimal.valueOf(12000.0), "Black"),
+        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", BigDecimal.valueOf(15000.0),
+            "Blue"),
+        new Product(2L, "REP7876543", "Jeans", "Straight fit jeans", "REPLAY",
+            BigDecimal.valueOf(15000.0), "Light Blue"));
 
     // 8 Elements over 3 pages, 3 per page as configured in pageable above
     Page<Product> productPage = new PageImpl<Product>(products, pageable, 8);
 
-    when(productRepository.findByTitleContainingIgnoreCase(ArgumentMatchers.matches("jeans"),
+    when(productRepository.findAll(ArgumentMatchers.any(Specification.class),
         ArgumentMatchers.any(Pageable.class))).thenReturn(productPage);
 
     // Execute request
     mockMvc
-        .perform(get("/products/search/findByTitle").param("title", "jeans")
+        .perform(get("/products").param("title", "jeans")
             .param("page", String.valueOf(pageable.getPageNumber()))
             .param("size", String.valueOf(pageable.getPageSize()))
             .param("sort", String.valueOf(pageable.getSort()))
@@ -191,15 +200,15 @@ public class ProductHalControllerTests {
 
         // Assert pagination Links
         .andExpect(jsonPath("$.PagedResources._links.first.href",
-            is("http://localhost/products/search/findByTitle?page=0&size=3&sort=color,asc")))
+            is("http://localhost/products?page=0&size=3&sort=color,asc")))
         .andExpect(jsonPath("$.PagedResources._links.prev.href",
-            is("http://localhost/products/search/findByTitle?page=0&size=3&sort=color,asc")))
+            is("http://localhost/products?page=0&size=3&sort=color,asc")))
         .andExpect(jsonPath("$.PagedResources._links.self.href",
-            is("http://localhost/products/search/findByTitle?page=1&size=3&sort=color,asc")))
+            is("http://localhost/products?page=1&size=3&sort=color,asc")))
         .andExpect(jsonPath("$.PagedResources._links.next.href",
-            is("http://localhost/products/search/findByTitle?page=2&size=3&sort=color,asc")))
+            is("http://localhost/products?page=2&size=3&sort=color,asc")))
         .andExpect(jsonPath("$.PagedResources._links.last.href",
-            is("http://localhost/products/search/findByTitle?page=2&size=3&sort=color,asc")))
+            is("http://localhost/products?page=2&size=3&sort=color,asc")))
 
         // Assert page metadata
         .andExpect(jsonPath("$.PagedResources.page.size", is(3)))
@@ -210,6 +219,7 @@ public class ProductHalControllerTests {
         .andReturn();
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void testFindByDescription() throws Exception {
 
@@ -218,20 +228,22 @@ public class ProductHalControllerTests {
 
     // 3 elements returned by repository for Page #1
     List<Product> products = Arrays.asList(
-        new Product(3L, "BOS9987676", "Jeans", "Relaxed fit jeans", "BOSS", 12000.0, "Black"),
-        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", 10000.0, "Blue"),
-        new Product(2L, "REP7876543", "Jeans", "Straight fit jeans", "REPLAY", 15000.0,
-            "Light Blue"));
+        new Product(3L, "BOS9987676", "Jeans", "Relaxed fit jeans", "BOSS",
+            BigDecimal.valueOf(12000.0), "Black"),
+        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", BigDecimal.valueOf(15000.0),
+            "Blue"),
+        new Product(2L, "REP7876543", "Jeans", "Straight fit jeans", "REPLAY",
+            BigDecimal.valueOf(15000.0), "Light Blue"));
 
     // 8 Elements over 3 pages, 3 per page as configured in pageable above
     Page<Product> productPage = new PageImpl<Product>(products, pageable, 8);
 
-    when(productRepository.findByDescriptionContainingIgnoreCase(ArgumentMatchers.matches("jeans"),
+    when(productRepository.findAll(ArgumentMatchers.any(Specification.class),
         ArgumentMatchers.any(Pageable.class))).thenReturn(productPage);
 
     // Execute request
     mockMvc
-        .perform(get("/products/search/findByDescription").param("description", "jeans")
+        .perform(get("/products").param("description", "jeans")
             .param("page", String.valueOf(pageable.getPageNumber()))
             .param("size", String.valueOf(pageable.getPageSize()))
             .param("sort", String.valueOf(pageable.getSort()))
@@ -250,16 +262,16 @@ public class ProductHalControllerTests {
             is("Straight fit jeans")))
 
         // Assert pagination Links
-        .andExpect(jsonPath("$.PagedResources._links.first.href", is(
-            "http://localhost/products/search/findByDescription?page=0&size=3&sort=description,asc")))
-        .andExpect(jsonPath("$.PagedResources._links.prev.href", is(
-            "http://localhost/products/search/findByDescription?page=0&size=3&sort=description,asc")))
-        .andExpect(jsonPath("$.PagedResources._links.self.href", is(
-            "http://localhost/products/search/findByDescription?page=1&size=3&sort=description,asc")))
-        .andExpect(jsonPath("$.PagedResources._links.next.href", is(
-            "http://localhost/products/search/findByDescription?page=2&size=3&sort=description,asc")))
-        .andExpect(jsonPath("$.PagedResources._links.last.href", is(
-            "http://localhost/products/search/findByDescription?page=2&size=3&sort=description,asc")))
+        .andExpect(jsonPath("$.PagedResources._links.first.href",
+            is("http://localhost/products?page=0&size=3&sort=description,asc")))
+        .andExpect(jsonPath("$.PagedResources._links.prev.href",
+            is("http://localhost/products?page=0&size=3&sort=description,asc")))
+        .andExpect(jsonPath("$.PagedResources._links.self.href",
+            is("http://localhost/products?page=1&size=3&sort=description,asc")))
+        .andExpect(jsonPath("$.PagedResources._links.next.href",
+            is("http://localhost/products?page=2&size=3&sort=description,asc")))
+        .andExpect(jsonPath("$.PagedResources._links.last.href",
+            is("http://localhost/products?page=2&size=3&sort=description,asc")))
 
         // Assert page metadata
         .andExpect(jsonPath("$.PagedResources.page.size", is(3)))
@@ -273,9 +285,10 @@ public class ProductHalControllerTests {
   @Test
   public void testNewProduct() throws Exception {
 
-    Product product =
-        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", 10000.0, "Blue");
+    Product product = new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS",
+        BigDecimal.valueOf(15000.0), "Blue");
 
+    when(productRepository.existsByProductId("GAS1234567")).thenReturn(false);
     when(productRepository.save(ArgumentMatchers.any(Product.class))).thenReturn(product);
 
     mockMvc
@@ -291,7 +304,7 @@ public class ProductHalControllerTests {
         .andExpect(jsonPath("$.ProductResource.title", is("Jeans")))
         .andExpect(jsonPath("$.ProductResource.description", is("Slim fit jeans")))
         .andExpect(jsonPath("$.ProductResource.brand", is("GAS")))
-        .andExpect(jsonPath("$.ProductResource.price", is(10000.0)))
+        .andExpect(jsonPath("$.ProductResource.price", is(15000.0)))
         .andExpect(jsonPath("$.ProductResource.color", is("Blue")))
 
         // Assert Resource links
@@ -327,12 +340,33 @@ public class ProductHalControllerTests {
   }
 
   @Test
+  public void testNewProductExisting() throws Exception {
+
+    Product product = new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS",
+        BigDecimal.valueOf(15000.0), "Blue");
+
+    when(productRepository.existsByProductId("GAS1234567")).thenReturn(true);
+    when(productRepository.save(ArgumentMatchers.any(Product.class))).thenReturn(product);
+
+    mockMvc
+        .perform(post("/products").content(objectMapper.writeValueAsString(product))
+            .contentType(MediaType.APPLICATION_JSON).accept(MarketPlaceMediaTypes.V1_HAL_UTF8))
+        .andDo(print()).andExpect(status().isConflict())
+        .andExpect(header().string(HttpHeaders.CONTENT_TYPE, MarketPlaceMediaTypes.V1_HAL_UTF8))
+        .andExpect(content().string(
+            "Product with Id : GAS1234567 already exists. Please send a PUT/PATCH request to update this product"))
+
+        .andReturn();
+  }
+
+  @Test
   public void testNewProductBatchSuccess() throws Exception {
 
     Product product1 = new Product(1L, "ARMBLT101", "Belt", "Reversible genuine leather belt",
-        "Armani", 3500.0, "Black/Brown");
-    Product product2 = new Product(2L, "COALTHBG102", "Cardigan",
-        "Cashmere cardigan with henley collar", "Ralph Lauren", 9000.0, "Charcoal Black");
+        "Armani", BigDecimal.valueOf(3500.0), "Black/Brown");
+    Product product2 =
+        new Product(2L, "COALTHBG102", "Cardigan", "Cashmere cardigan with henley collar",
+            "Ralph Lauren", BigDecimal.valueOf(9000.0), "Charcoal Black");
 
     ProductBatch<Product> productBatch = new ProductBatch<>(Arrays.asList(product1, product2));
 
@@ -442,14 +476,26 @@ public class ProductHalControllerTests {
   @Test
   public void testNewProductBatchSuccessAndFail() throws Exception {
 
-    Product product1 = new Product(1L, "ARMBLT101", "Belt", "Reversible genuine leather belt",
-        "Armani", 3500.0, "Black/Brown");
-    Product product2 = new Product(2L, "COALTHBG102", "Cardigan",
-        "Cashmere cardigan with henley collar", "Ralph Lauren", 9000.0, "Charcoal Black");
+    Product product1 = new Product("ARMBLT101", "Belt", "Reversible genuine leather belt", "Armani",
+        BigDecimal.valueOf(3500.0), "Black/Brown");
+    
+    Product product2 =
+        new Product("COALTHBG102", "Cardigan", "Cashmere cardigan with henley collar",
+            "Ralph Lauren", BigDecimal.valueOf(9000.0), "Charcoal Black");
 
-    ProductBatch<Product> productBatch = new ProductBatch<>(Arrays.asList(product1, product2));
+    // Should Give a conflict for duplicate productId - ARMBLT101
+    Product product3 = new Product("ARMBLT101", "Belt", "Reversible genuine leather belt", "Armani",
+        BigDecimal.valueOf(3500.0), "Black/Brown");
 
-    when(productRepository.save(ArgumentMatchers.any(Product.class))).thenReturn(product1)
+    Product savedProduct1 = new Product(1L, "ARMBLT101", "Belt", "Reversible genuine leather belt",
+        "Armani", BigDecimal.valueOf(3500.0), "Black/Brown");
+
+    ProductBatch<Product> productBatch =
+        new ProductBatch<>(Arrays.asList(product1, product2, product3));
+
+    when(productRepository.existsByProductId("ARMBLT101")).thenReturn(false).thenReturn(true);
+    when(productRepository.existsByProductId("COALTHBG102")).thenReturn(false);
+    when(productRepository.save(ArgumentMatchers.any(Product.class))).thenReturn(savedProduct1)
         .thenThrow(new RuntimeException("Unable to save product"));
 
     // Remove "\"price\":9000.0," from JSON for product 2 to simulate missed attribute
@@ -503,10 +549,10 @@ public class ProductHalControllerTests {
             is("http://localhost/products/1")))
         .andExpect(jsonPath("$.Resource.products[0].product._links.delete.type", is("DELETE")))
 
-        // Repeat for second product
+        // Repeat for second product - Bad Request
 
         // Assert Batch Status fields
-        .andExpect(jsonPath("$.Resource.products[1].httpStatus", is("CONFLICT")))
+        .andExpect(jsonPath("$.Resource.products[1].httpStatus", is("BAD_REQUEST")))
         .andExpect(jsonPath("$.Resource.products[1].error", is("Unable to save product")))
         .andExpect(jsonPath("$.Resource.products[1].httpMethod", is("POST")))
 
@@ -520,6 +566,25 @@ public class ProductHalControllerTests {
         .andExpect(jsonPath("$.Resource.products[1].product.price", IsNull.nullValue()))
         .andExpect(jsonPath("$.Resource.products[1].product.color", is("Charcoal Black")))
 
+        // Repeat for third product - Conflict
+
+        // Assert Batch Status fields
+        .andExpect(jsonPath("$.Resource.products[2].httpStatus", is("CONFLICT")))
+        .andExpect(jsonPath("$.Resource.products[2].error", is(
+            "Product with Id : ARMBLT101 already exists. Please send a PUT/PATCH request to update this product")))
+        .andExpect(jsonPath("$.Resource.products[2].httpMethod", is("POST")))
+
+        // Assert product fields
+
+        .andExpect(jsonPath("$.Resource.products[2].product.productId", is("ARMBLT101")))
+        .andExpect(jsonPath("$.Resource.products[2].product.title", is("Belt")))
+        .andExpect(jsonPath("$.Resource.products[2].product.description",
+            is("Reversible genuine leather belt")))
+        .andExpect(jsonPath("$.Resource.products[2].product.brand", is("Armani")))
+        .andExpect(jsonPath("$.Resource.products[2].product.price", is(3500.0)))
+        .andExpect(jsonPath("$.Resource.products[2].product.color", is("Black/Brown")))
+
+
         // Assert the batch resource link
 
         .andExpect(jsonPath("$.Resource._links.self.href", is("http://localhost/products/batch")))
@@ -531,10 +596,10 @@ public class ProductHalControllerTests {
   @Test
   public void testUpdateProductPutForUpdate() throws Exception {
 
-    Product existingproduct =
-        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", 10000.0, "Blue");
-    Product updatedproduct =
-        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", 12000.0, "Black");
+    Product existingproduct = new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS",
+        BigDecimal.valueOf(15000.0), "Blue");
+    Product updatedproduct = new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS",
+        BigDecimal.valueOf(12000.0), "Black");
 
     when(productRepository.findById(ArgumentMatchers.any(Long.class)))
         .thenReturn(Optional.of(existingproduct));
@@ -585,8 +650,8 @@ public class ProductHalControllerTests {
   @Test
   public void testUpdateProductPutForCreate() throws Exception {
 
-    Product updatedproduct =
-        new Product(2L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", 12000.0, "Black");
+    Product updatedproduct = new Product(2L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS",
+        BigDecimal.valueOf(12000.0), "Black");
 
     when(productRepository.findById(ArgumentMatchers.any(Long.class))).thenReturn(Optional.empty());
     when(productRepository.save(ArgumentMatchers.any(Product.class))).thenReturn(updatedproduct);
@@ -638,11 +703,11 @@ public class ProductHalControllerTests {
   @Test
   public void testUpdateProductPatch() throws Exception {
 
-    Product existingproduct =
-        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", 10000.0, "Blue");
+    Product existingproduct = new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS",
+        BigDecimal.valueOf(15000.0), "Blue");
     Product updatedproduct = new Product();
     updatedproduct.setColor("Beige");
-    updatedproduct.setPrice(7000.0);
+    updatedproduct.setPrice(BigDecimal.valueOf(7000.0));
 
     when(productRepository.findById(ArgumentMatchers.any(Long.class)))
         .thenReturn(Optional.of(existingproduct));
@@ -692,8 +757,8 @@ public class ProductHalControllerTests {
   @Test
   public void testDeleteProduct() throws Exception {
 
-    Product existingproduct =
-        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", 10000.0, "Blue");
+    Product existingproduct = new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS",
+        BigDecimal.valueOf(15000.0), "Blue");
 
     when(productRepository.findById(ArgumentMatchers.any(Long.class)))
         .thenReturn(Optional.of(existingproduct));
@@ -718,6 +783,7 @@ public class ProductHalControllerTests {
 
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void testFindByTitleNotFound() throws Exception {
 
@@ -729,12 +795,12 @@ public class ProductHalControllerTests {
 
     Page<Product> productPage = new PageImpl<Product>(products, pageable, 0);
 
-    when(productRepository.findByTitleContainingIgnoreCase(ArgumentMatchers.matches("hats"),
+    when(productRepository.findAll(ArgumentMatchers.any(Specification.class),
         ArgumentMatchers.any(Pageable.class))).thenReturn(productPage);
 
     // Execute request
     mockMvc
-        .perform(get("/products/search/findByTitle").param("title", "hats")
+        .perform(get("/products").param("title", "hats")
             .param("page", String.valueOf(pageable.getPageNumber()))
             .param("size", String.valueOf(pageable.getPageSize()))
             .param("sort", String.valueOf(pageable.getSort()))
@@ -744,6 +810,7 @@ public class ProductHalControllerTests {
         .andExpect(jsonPath("$.PagedResources._embedded.products", IsEmptyCollection.empty()));
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void testFindByDescriptionNotFound() throws Exception {
 
@@ -755,18 +822,16 @@ public class ProductHalControllerTests {
 
     Page<Product> productPage = new PageImpl<Product>(products, pageable, 0);
 
-    when(productRepository.findByDescriptionContainingIgnoreCase(
-        ArgumentMatchers.matches("Regular fit shirts"), ArgumentMatchers.any(Pageable.class)))
-            .thenReturn(productPage);
+    when(productRepository.findAll(ArgumentMatchers.any(Specification.class),
+        ArgumentMatchers.any(Pageable.class))).thenReturn(productPage);
 
     // Execute request
     mockMvc
-        .perform(
-            get("/products/search/findByDescription").param("description", "Regular fit shirts")
-                .param("page", String.valueOf(pageable.getPageNumber()))
-                .param("size", String.valueOf(pageable.getPageSize()))
-                .param("sort", String.valueOf(pageable.getSort()))
-                .accept(MarketPlaceMediaTypes.V1_HAL_UTF8))
+        .perform(get("/products").param("description", "Regular fit shirts")
+            .param("page", String.valueOf(pageable.getPageNumber()))
+            .param("size", String.valueOf(pageable.getPageSize()))
+            .param("sort", String.valueOf(pageable.getSort()))
+            .accept(MarketPlaceMediaTypes.V1_HAL_UTF8))
         .andDo(print()).andExpect(status().isOk())
         .andExpect(header().string(HttpHeaders.CONTENT_TYPE, MarketPlaceMediaTypes.V1_HAL_UTF8))
         .andExpect(jsonPath("$.PagedResources._embedded.products", IsEmptyCollection.empty()));
@@ -777,7 +842,7 @@ public class ProductHalControllerTests {
 
     Product updatedproduct = new Product();
     updatedproduct.setColor("Beige");
-    updatedproduct.setPrice(7000.0);
+    updatedproduct.setPrice(BigDecimal.valueOf(7000.0));
 
     when(productRepository.findById(ArgumentMatchers.any(Long.class))).thenReturn(Optional.empty());
 

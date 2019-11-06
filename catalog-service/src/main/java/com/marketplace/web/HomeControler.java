@@ -10,8 +10,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/")
 public class HomeControler {
 
-  @Autowired
   private Environment env;
+
+  @Autowired
+  public HomeControler(Environment env) {
+    super();
+    this.env = env;
+  }
+
+
 
   @GetMapping("/")
   public String home() {

@@ -2,6 +2,7 @@ package com.marketplace.model;
 
 
 import java.lang.reflect.Field;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.Entity;
@@ -21,11 +22,11 @@ public class Product {
   private String title;
   private String description;
   private String brand;
-  private Double price;
+  private BigDecimal price;
   private String color;
 
   public Product(Long id, String productId, String title, String description, String brand,
-      Double price, String color) {
+      BigDecimal price, String color) {
     super();
     this.id = id;
     this.productId = productId;
@@ -36,7 +37,7 @@ public class Product {
     this.color = color;
   }
 
-  public Product(String productId, String title, String description, String brand, Double price,
+  public Product(String productId, String title, String description, String brand, BigDecimal price,
       String color) {
     super();
     this.productId = productId;
@@ -152,11 +153,11 @@ public class Product {
     this.brand = brand;
   }
 
-  public Double getPrice() {
+  public BigDecimal getPrice() {
     return price;
   }
 
-  public void setPrice(Double price) {
+  public void setPrice(BigDecimal price) {
     this.price = price;
   }
 

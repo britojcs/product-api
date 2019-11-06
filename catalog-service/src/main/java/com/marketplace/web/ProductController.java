@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import com.marketplace.model.Product;
 import com.marketplace.repository.ProductRepository;
+import com.marketplace.repository.specs.ProductWithBrandSpec;
+import com.marketplace.repository.specs.ProductWithColorSpec;
+import com.marketplace.repository.specs.ProductWithDescriptionSpec;
+import com.marketplace.repository.specs.ProductWithProductIdSpec;
+import com.marketplace.repository.specs.ProductWithTitleSpec;
 
 /**
  * Product API endpoints for plain JSON response format
@@ -30,15 +36,22 @@ import com.marketplace.repository.ProductRepository;
  */
 @RestController
 @RequestMapping("/products")
-public class ProductController {
+public class ProductController extends AbstractProductController {
 
   @Autowired
-  private ProductRepository productRepository;
+  public ProductController(ProductRepository productRepository) {
+    super(productRepository);
+  }
 
   @GetMapping(produces = MarketPlaceMediaTypes.V1_JSON_UTF8)
-  public ResponseEntity<Iterable<Product>> findAll(Sort sort) {
+  public ResponseEntity<Iterable<Product>> findAll(String productId, String title, String color,
+      String brand, String description, Sort sort) {
 
-    return ResponseEntity.ok(productRepository.findAll(sort));
+    return ResponseEntity.ok(productRepository.findAll(
+        Specification.where(new ProductWithProductIdSpec(productId))
+            .and(new ProductWithTitleSpec(title)).and(new ProductWithColorSpec(color))
+            .and(new ProductWithBrandSpec(brand)).and(new ProductWithDescriptionSpec(description)),
+        sort));
   }
 
   @GetMapping(value = "/{id}", produces = MarketPlaceMediaTypes.V1_JSON_UTF8)
@@ -48,31 +61,32 @@ public class ProductController {
         .orElse(ResponseEntity.notFound().build());
   }
 
-  @GetMapping(value = "/search/findByDescription", produces = MarketPlaceMediaTypes.V1_JSON_UTF8)
-  public ResponseEntity<Iterable<Product>> findByDescriptionResponse(String description,
-      Sort sort) {
-
-    return ResponseEntity
-        .ok(productRepository.findByDescriptionContainingIgnoreCase(description, sort));
-  }
-
-  @GetMapping(value = "/search/findByTitle", produces = MarketPlaceMediaTypes.V1_JSON_UTF8)
-  public ResponseEntity<Iterable<Product>> findByTitleResponse(String title, Sort sort) {
-
-    return ResponseEntity.ok(productRepository.findByTitleContainingIgnoreCase(title, sort));
-  }
-
   @PostMapping(produces = MarketPlaceMediaTypes.V1_JSON_UTF8)
   ResponseEntity<?> newProduct(@RequestBody Product product) {
 
     try {
 
-      Product savedProduct = productRepository.save(product);
+      ResponseEntity<?> responseEntity = null;
 
-      return ResponseEntity.created(ServletUriComponentsBuilder.fromCurrentRequestUri()
-          .path("/" + savedProduct.getId().toString()).build().toUri()).body(savedProduct);
+      if (productExists(product)) {
+
+        responseEntity = ResponseEntity.status(HttpStatus.CONFLICT)
+            .body("Product with Id : " + product.getProductId()
+                + " already exists. Please send a PUT/PATCH request to update this product");
+      } else {
+
+        Product savedProduct = productRepository.save(product);
+        responseEntity =
+            ResponseEntity
+                .created(ServletUriComponentsBuilder.fromCurrentRequestUri()
+                    .path("/" + savedProduct.getId().toString()).build().toUri())
+                .body(savedProduct);
+      }
+
+      return responseEntity;
 
     } catch (Exception e) {
+
       return ResponseEntity.badRequest().body("Unable to create " + product);
     }
   }
@@ -88,17 +102,25 @@ public class ProductController {
 
       try {
 
-        Product savedProduct = productRepository.save(product);
+        if (productExists(product)) {
 
-        productBatchResults.add(new ProductBatchResult<Product>(HttpStatus.OK,
-            ServletUriComponentsBuilder.fromCurrentRequestUri()
-                .path("/" + savedProduct.getId().toString()).build().toUri(),
-            HttpMethod.POST, savedProduct));
+          productBatchResults
+              .add(new ProductBatchResult<Product>(HttpStatus.CONFLICT, HttpMethod.POST,
+                  "Product with Id : " + product.getProductId()
+                      + " already exists. Please send a PUT/PATCH request to update this product",
+                  product));
+        } else {
 
+          Product savedProduct = productRepository.save(product);
 
+          productBatchResults.add(new ProductBatchResult<Product>(HttpStatus.OK,
+              ServletUriComponentsBuilder.fromCurrentRequestUri()
+                  .path("/" + savedProduct.getId().toString()).build().toUri(),
+              HttpMethod.POST, savedProduct));
+        }
       } catch (Exception e) {
 
-        productBatchResults.add(new ProductBatchResult<Product>(HttpStatus.CONFLICT,
+        productBatchResults.add(new ProductBatchResult<Product>(HttpStatus.BAD_REQUEST,
             HttpMethod.POST, e.getMessage(), product));
       }
     }

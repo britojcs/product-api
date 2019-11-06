@@ -8,9 +8,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -25,6 +27,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -55,12 +58,15 @@ public class ProductControllerTests {
 
     // 3 elements returned by repository
     List<Product> products = Arrays.asList(
-        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", 10000.0, "Blue"),
-        new Product(2L, "REP7876543", "Jeans", "Straight fit jeans", "REPLAY", 15000.0,
-            "Light Blue"),
-        new Product(3L, "BOS9987676", "Shirt", "Button Down Oxford", "BOSS", 12000.0, "White"));
+        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", BigDecimal.valueOf(10000.0),
+            "Blue"),
+        new Product(2L, "REP7876543", "Jeans", "Straight fit jeans", "REPLAY",
+            BigDecimal.valueOf(15000.0), "Light Blue"),
+        new Product(3L, "BOS9987676", "Shirt", "Button Down Oxford", "BOSS",
+            BigDecimal.valueOf(12000.0), "White"));
 
-    when(productRepository.findAll(ArgumentMatchers.any(Sort.class))).thenReturn(products);
+    when(productRepository.findAll(ArgumentMatchers.any(), ArgumentMatchers.any(Sort.class)))
+        .thenReturn(products);
 
     // Execute request
     mockMvc
@@ -80,8 +86,8 @@ public class ProductControllerTests {
   @Test
   public void testFindById() throws Exception {
 
-    when(productRepository.findById(1L)).thenReturn(Optional
-        .of(new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", 10000.0, "Blue")));
+    when(productRepository.findById(1L)).thenReturn(Optional.of(new Product(1L, "GAS1234567",
+        "Jeans", "Slim fit jeans", "GAS", BigDecimal.valueOf(10000.0), "Blue")));
 
     // Execute request
     mockMvc.perform(get("/products/1").accept(MarketPlaceMediaTypes.V1_JSON_UTF8)).andDo(print())
@@ -100,6 +106,7 @@ public class ProductControllerTests {
         .andReturn();
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void testFindByTitle() throws Exception {
 
@@ -107,18 +114,20 @@ public class ProductControllerTests {
 
     // 3 elements returned by repository for Page #1
     List<Product> products = Arrays.asList(
-        new Product(3L, "BOS9987676", "Jeans", "Relaxed fit jeans", "BOSS", 12000.0, "Black"),
-        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", 10000.0, "Blue"),
-        new Product(2L, "REP7876543", "Jeans", "Straight fit jeans", "REPLAY", 15000.0,
-            "Light Blue"));
+        new Product(3L, "BOS9987676", "Jeans", "Relaxed fit jeans", "BOSS",
+            BigDecimal.valueOf(12000.0), "Black"),
+        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", BigDecimal.valueOf(10000.0),
+            "Blue"),
+        new Product(2L, "REP7876543", "Jeans", "Straight fit jeans", "REPLAY",
+            BigDecimal.valueOf(15000.0), "Light Blue"));
 
-    when(productRepository.findByTitleContainingIgnoreCase(ArgumentMatchers.matches("jeans"),
+    when(productRepository.findAll(ArgumentMatchers.any(Specification.class),
         ArgumentMatchers.any(Sort.class))).thenReturn(products);
 
     // Execute request
     mockMvc
-        .perform(get("/products/search/findByTitle").param("title", "jeans")
-            .param("sort", String.valueOf(sort)).accept(MarketPlaceMediaTypes.V1_JSON_UTF8))
+        .perform(get("/products").param("title", "jeans").param("sort", String.valueOf(sort))
+            .accept(MarketPlaceMediaTypes.V1_JSON_UTF8))
         .andDo(print()).andExpect(status().isOk())
         .andExpect(header().string(HttpHeaders.CONTENT_TYPE, MarketPlaceMediaTypes.V1_JSON_UTF8))
         .andExpect(jsonPath("$.ArrayList.length()", is(3)))
@@ -131,6 +140,7 @@ public class ProductControllerTests {
         .andReturn();
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void testFindByDescription() throws Exception {
 
@@ -138,18 +148,20 @@ public class ProductControllerTests {
 
     // 3 elements returned by repository for Page #1
     List<Product> products = Arrays.asList(
-        new Product(3L, "BOS9987676", "Jeans", "Relaxed fit jeans", "BOSS", 12000.0, "Black"),
-        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", 10000.0, "Blue"),
-        new Product(2L, "REP7876543", "Jeans", "Straight fit jeans", "REPLAY", 15000.0,
-            "Light Blue"));
+        new Product(3L, "BOS9987676", "Jeans", "Relaxed fit jeans", "BOSS",
+            BigDecimal.valueOf(12000.0), "Black"),
+        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", BigDecimal.valueOf(10000.0),
+            "Blue"),
+        new Product(2L, "REP7876543", "Jeans", "Straight fit jeans", "REPLAY",
+            BigDecimal.valueOf(15000.0), "Light Blue"));
 
-    when(productRepository.findByDescriptionContainingIgnoreCase(ArgumentMatchers.matches("jeans"),
+    when(productRepository.findAll(ArgumentMatchers.any(Specification.class),
         ArgumentMatchers.any(Sort.class))).thenReturn(products);
 
     // Execute request
     mockMvc
-        .perform(get("/products/search/findByDescription").param("description", "jeans")
-            .param("sort", String.valueOf(sort)).accept(MarketPlaceMediaTypes.V1_JSON_UTF8))
+        .perform(get("/products").param("description", "jeans").param("sort", String.valueOf(sort))
+            .accept(MarketPlaceMediaTypes.V1_JSON_UTF8))
         .andDo(print()).andExpect(status().isOk())
         .andExpect(header().string(HttpHeaders.CONTENT_TYPE, MarketPlaceMediaTypes.V1_JSON_UTF8))
         .andExpect(jsonPath("$.ArrayList.length()", is(3)))
@@ -166,8 +178,9 @@ public class ProductControllerTests {
   @Test
   public void testNewProduct() throws Exception {
 
-    Product product =
-        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", 10000.0, "Blue");
+    Product product = new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS",
+        BigDecimal.valueOf(10000.0), "Blue");
+    when(productRepository.existsByProductId("GAS1234567")).thenReturn(false);
     when(productRepository.save(ArgumentMatchers.any(Product.class))).thenReturn(product);
 
     mockMvc
@@ -192,12 +205,32 @@ public class ProductControllerTests {
   }
 
   @Test
+  public void testNewProductExisting() throws Exception {
+
+    Product product = new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS",
+        BigDecimal.valueOf(10000.0), "Blue");
+    when(productRepository.existsByProductId("GAS1234567")).thenReturn(true);
+    when(productRepository.save(ArgumentMatchers.any(Product.class))).thenReturn(product);
+
+    mockMvc
+        .perform(post("/products").content(objectMapper.writeValueAsString(product))
+            .contentType(MediaType.APPLICATION_JSON).accept(MarketPlaceMediaTypes.V1_JSON_UTF8))
+        .andDo(print()).andExpect(status().isConflict())
+        .andExpect(header().string(HttpHeaders.CONTENT_TYPE, MarketPlaceMediaTypes.V1_JSON_UTF8))
+        .andExpect(content().string(
+            "Product with Id : GAS1234567 already exists. Please send a PUT/PATCH request to update this product"))
+
+        .andReturn();
+  }
+
+  @Test
   public void testNewProductsBatchSuccess() throws Exception {
 
     Product product1 = new Product(1L, "ARMBLT101", "Belt", "Reversible genuine leather belt",
-        "Armani", 3500.0, "Black/Brown");
-    Product product2 = new Product(2L, "COALTHBG102", "Cardigan",
-        "Cashmere cardigan with henley collar", "Ralph Lauren", 9000.0, "Charcoal Black");
+        "Armani", BigDecimal.valueOf(3500.0), "Black/Brown");
+    Product product2 =
+        new Product(2L, "COALTHBG102", "Cardigan", "Cashmere cardigan with henley collar",
+            "Ralph Lauren", BigDecimal.valueOf(9000.0), "Charcoal Black");
 
     ProductBatch<Product> productBatch = new ProductBatch<>(Arrays.asList(product1, product2));
 
@@ -245,15 +278,27 @@ public class ProductControllerTests {
   @Test
   public void testNewProductsBatchSuccessAndFail() throws Exception {
 
-    Product product1 = new Product(1L, "ARMBLT101", "Belt", "Reversible genuine leather belt",
-        "Armani", 3500.0, "Black/Brown");
-    Product product2 = new Product(2L, "COALTHBG102", "Cardigan",
-        "Cashmere cardigan with henley collar", "Ralph Lauren", 9000.0, "Charcoal Black");
+    Product product1 = new Product("ARMBLT101", "Belt", "Reversible genuine leather belt", "Armani",
+        BigDecimal.valueOf(3500.0), "Black/Brown");
+    Product product2 =
+        new Product("COALTHBG102", "Cardigan", "Cashmere cardigan with henley collar",
+            "Ralph Lauren", BigDecimal.valueOf(9000.0), "Charcoal Black");
 
-    ProductBatch<Product> productBatch = new ProductBatch<>(Arrays.asList(product1, product2));
+    // Should Give a conflict for duplicate productId - ARMBLT101
+    Product product3 = new Product("ARMBLT101", "Belt", "Reversible genuine leather belt", "Armani",
+        BigDecimal.valueOf(3500.0), "Black/Brown");
 
-    when(productRepository.save(ArgumentMatchers.any(Product.class))).thenReturn(product1)
+    Product savedProduct1 = new Product(1L, "ARMBLT101", "Belt", "Reversible genuine leather belt",
+        "Armani", BigDecimal.valueOf(3500.0), "Black/Brown");
+
+    ProductBatch<Product> productBatch =
+        new ProductBatch<>(Arrays.asList(product1, product2, product3));
+
+    when(productRepository.existsByProductId("ARMBLT101")).thenReturn(false).thenReturn(true);
+    when(productRepository.existsByProductId("COALTHBG102")).thenReturn(false);
+    when(productRepository.save(ArgumentMatchers.any(Product.class))).thenReturn(savedProduct1)
         .thenThrow(new RuntimeException("Unable to save product"));
+
 
     // Remove "\"price\":9000.0," from JSON for product 2 to simulate missed attribute
 
@@ -279,10 +324,10 @@ public class ProductControllerTests {
         .andExpect(jsonPath("$.productsBatch.products[0].product.price", is(3500.0)))
         .andExpect(jsonPath("$.productsBatch.products[0].product.color", is("Black/Brown")))
 
-        .andExpect(jsonPath("$.productsBatch.products[1].httpStatus", is("CONFLICT")))
+        // Second product - BAD_GATEWAY
+        .andExpect(jsonPath("$.productsBatch.products[1].httpStatus", is("BAD_REQUEST")))
         .andExpect(jsonPath("$.productsBatch.products[1].httpMethod", is("POST")))
         .andExpect(jsonPath("$.productsBatch.products[1].error", is("Unable to save product")))
-        .andExpect(jsonPath("$.productsBatch.products[1].product.id", is(2)))
         .andExpect(jsonPath("$.productsBatch.products[1].product.productId", is("COALTHBG102")))
         .andExpect(jsonPath("$.productsBatch.products[1].product.title", is("Cardigan")))
         .andExpect(jsonPath("$.productsBatch.products[1].product.description",
@@ -291,16 +336,29 @@ public class ProductControllerTests {
         .andExpect(jsonPath("$.productsBatch.products[1].product.price", IsNull.nullValue()))
         .andExpect(jsonPath("$.productsBatch.products[1].product.color", is("Charcoal Black")))
 
+        // Third product - CONFLICT
+        .andExpect(jsonPath("$.productsBatch.products[2].httpStatus", is("CONFLICT")))
+        .andExpect(jsonPath("$.productsBatch.products[2].httpMethod", is("POST")))
+        .andExpect(jsonPath("$.productsBatch.products[2].error", is(
+            "Product with Id : ARMBLT101 already exists. Please send a PUT/PATCH request to update this product")))
+        .andExpect(jsonPath("$.productsBatch.products[2].product.productId", is("ARMBLT101")))
+        .andExpect(jsonPath("$.productsBatch.products[2].product.title", is("Belt")))
+        .andExpect(jsonPath("$.productsBatch.products[2].product.description",
+            is("Reversible genuine leather belt")))
+        .andExpect(jsonPath("$.productsBatch.products[2].product.brand", is("Armani")))
+        .andExpect(jsonPath("$.productsBatch.products[2].product.price", is(3500.0)))
+        .andExpect(jsonPath("$.productsBatch.products[2].product.color", is("Black/Brown")))
+
         .andReturn();
   }
 
   @Test
   public void testUpdateProductPutForUpdate() throws Exception {
 
-    Product existingproduct =
-        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", 10000.0, "Blue");
-    Product updatedproduct =
-        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", 12000.0, "Black");
+    Product existingproduct = new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS",
+        BigDecimal.valueOf(10000.0), "Blue");
+    Product updatedproduct = new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS",
+        BigDecimal.valueOf(12000.0), "Black");
 
     when(productRepository.findById(ArgumentMatchers.any(Long.class)))
         .thenReturn(Optional.of(existingproduct));
@@ -328,8 +386,8 @@ public class ProductControllerTests {
   @Test
   public void testUpdateProductPutForCreate() throws Exception {
 
-    Product updatedproduct =
-        new Product(2L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", 12000.0, "Black");
+    Product updatedproduct = new Product(2L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS",
+        BigDecimal.valueOf(12000.0), "Black");
 
     when(productRepository.findById(ArgumentMatchers.any(Long.class))).thenReturn(Optional.empty());
     when(productRepository.save(ArgumentMatchers.any(Product.class))).thenReturn(updatedproduct);
@@ -360,11 +418,11 @@ public class ProductControllerTests {
   @Test
   public void testUpdateProductPatch() throws Exception {
 
-    Product existingproduct =
-        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", 10000.0, "Blue");
+    Product existingproduct = new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS",
+        BigDecimal.valueOf(10000.0), "Blue");
     Product updatedproduct = new Product();
     updatedproduct.setColor("Beige");
-    updatedproduct.setPrice(7000.0);
+    updatedproduct.setPrice(BigDecimal.valueOf(7000.0));
 
     when(productRepository.findById(ArgumentMatchers.any(Long.class)))
         .thenReturn(Optional.of(existingproduct));
@@ -392,8 +450,8 @@ public class ProductControllerTests {
   @Test
   public void testDeleteProduct() throws Exception {
 
-    Product existingproduct =
-        new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS", 10000.0, "Blue");
+    Product existingproduct = new Product(1L, "GAS1234567", "Jeans", "Slim fit jeans", "GAS",
+        BigDecimal.valueOf(10000.0), "Blue");
 
     when(productRepository.findById(ArgumentMatchers.any(Long.class)))
         .thenReturn(Optional.of(existingproduct));
@@ -417,6 +475,7 @@ public class ProductControllerTests {
 
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void testFindByTitleNotFound() throws Exception {
 
@@ -424,12 +483,12 @@ public class ProductControllerTests {
 
     List<Product> products = Arrays.asList();
 
-    when(productRepository.findByTitleContainingIgnoreCase(ArgumentMatchers.matches("hats"),
+    when(productRepository.findAll(ArgumentMatchers.any(Specification.class),
         ArgumentMatchers.any(Sort.class))).thenReturn(products);
 
     // Execute request
     mockMvc
-        .perform(get("/products/search/findByTitle").param("title", "hats")
+        .perform(get("/products").param("title", "hats")
             .param("sort", String.valueOf(Sort.by(Direction.ASC, "color")))
             .accept(MarketPlaceMediaTypes.V1_JSON_UTF8))
         .andDo(print()).andExpect(status().isOk())
@@ -437,6 +496,7 @@ public class ProductControllerTests {
         .andExpect(jsonPath("$.ArrayList", IsEmptyCollection.empty()));
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void testFindByDescriptionNotFound() throws Exception {
 
@@ -444,16 +504,14 @@ public class ProductControllerTests {
 
     List<Product> products = Arrays.asList();
 
-    when(productRepository.findByDescriptionContainingIgnoreCase(
-        ArgumentMatchers.matches("Regular fit shirts"), ArgumentMatchers.any(Sort.class)))
-            .thenReturn(products);
+    when(productRepository.findAll(ArgumentMatchers.any(Specification.class),
+        ArgumentMatchers.any(Sort.class))).thenReturn(products);
 
     // Execute request
     mockMvc
-        .perform(
-            get("/products/search/findByDescription").param("description", "Regular fit shirts")
-                .param("sort", String.valueOf(Sort.by(Direction.ASC, "color")))
-                .accept(MarketPlaceMediaTypes.V1_JSON_UTF8))
+        .perform(get("/products").param("description", "Regular fit shirts")
+            .param("sort", String.valueOf(Sort.by(Direction.ASC, "color")))
+            .accept(MarketPlaceMediaTypes.V1_JSON_UTF8))
         .andDo(print()).andExpect(status().isOk())
         .andExpect(header().string(HttpHeaders.CONTENT_TYPE, MarketPlaceMediaTypes.V1_JSON_UTF8))
         .andExpect(jsonPath("$.ArrayList", IsEmptyCollection.empty()));
@@ -464,7 +522,7 @@ public class ProductControllerTests {
 
     Product updatedproduct = new Product();
     updatedproduct.setColor("Beige");
-    updatedproduct.setPrice(7000.0);
+    updatedproduct.setPrice(BigDecimal.valueOf(7000.0));
 
     when(productRepository.findById(ArgumentMatchers.any(Long.class))).thenReturn(Optional.empty());
 
@@ -481,11 +539,6 @@ public class ProductControllerTests {
 
     mockMvc.perform(delete("/products/1").accept(MarketPlaceMediaTypes.V1_JSON_UTF8)).andDo(print())
         .andExpect(status().isNotFound()).andReturn();
-  }
-
-  public static void main(String[] args) {
-    System.out.println("\"brand\":\"Ralph Lauren\",\"price\":9000.0,\"color\":\"Charcoal Black\""
-        .replace("\"price\":9000.0,", ""));
   }
 
 }

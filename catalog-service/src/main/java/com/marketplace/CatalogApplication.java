@@ -17,8 +17,8 @@ public class CatalogApplication {
 
   /**
    * This Bean is required to enable x-forwarded-host & x-forwarded-prefix headers so that
-   * {@link ControllerLinkBuilder} in soring-hateoas can generate zuul gateway links for hateoas
-   * resources instead of direct service links. Spring boot disables these headers by deafult
+   * {@link ControllerLinkBuilder} in spring-hateoas can generate zuul gateway links for hateoas
+   * resources instead of direct service links. Spring boot disables these headers by default
    * 
    * @return
    */

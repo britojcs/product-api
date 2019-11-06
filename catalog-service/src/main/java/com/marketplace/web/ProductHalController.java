@@ -10,6 +10,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.PagedResources;
 import org.springframework.hateoas.Resource;
@@ -27,6 +28,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.marketplace.model.Product;
 import com.marketplace.repository.ProductRepository;
+import com.marketplace.repository.specs.ProductWithBrandSpec;
+import com.marketplace.repository.specs.ProductWithColorSpec;
+import com.marketplace.repository.specs.ProductWithDescriptionSpec;
+import com.marketplace.repository.specs.ProductWithProductIdSpec;
+import com.marketplace.repository.specs.ProductWithTitleSpec;
 
 /**
  * Product API endpoints for HATEOAS response format
@@ -36,22 +42,36 @@ import com.marketplace.repository.ProductRepository;
  */
 @RestController
 @RequestMapping("/products")
-public class ProductHalController {
+public class ProductHalController extends AbstractProductController {
 
-  @Autowired
-  private ProductRepository productRepository;
 
-  @Autowired
   private ProductResourceAssembler productResourceAssembler;
 
-  @Autowired
   private PagedResourcesAssembler<Product> pagedResourcesAssembler;
 
-  @GetMapping(produces = MarketPlaceMediaTypes.V1_HAL_UTF8)
-  public ResponseEntity<PagedResources<ProductResource>> findAll(Pageable pageable) {
+  @Autowired
+  public ProductHalController(ProductRepository productRepository,
+      ProductResourceAssembler productResourceAssembler,
+      PagedResourcesAssembler<Product> pagedResourcesAssembler) {
+    super(productRepository);
+    this.productResourceAssembler = productResourceAssembler;
+    this.pagedResourcesAssembler = pagedResourcesAssembler;
+  }
 
-    return ResponseEntity.ok(pagedResourcesAssembler.toResource(productRepository.findAll(pageable),
-        productResourceAssembler));
+  @GetMapping(produces = MarketPlaceMediaTypes.V1_HAL_UTF8)
+  public ResponseEntity<PagedResources<?>> findAll(String productId, String title, String color,
+      String brand, String description, Pageable pageable) {
+
+
+    Page<Product> page = productRepository.findAll(
+        Specification.where(new ProductWithProductIdSpec(productId))
+            .and(new ProductWithTitleSpec(title)).and(new ProductWithColorSpec(color))
+            .and(new ProductWithBrandSpec(brand)).and(new ProductWithDescriptionSpec(description)),
+        pageable);
+
+    return page.getTotalElements() != 0
+        ? ResponseEntity.ok(pagedResourcesAssembler.toResource(page, productResourceAssembler))
+        : ResponseEntity.ok(pagedResourcesAssembler.toEmptyResource(page, Product.class));
   }
 
   @GetMapping(value = "/{id}", produces = MarketPlaceMediaTypes.V1_HAL_UTF8)
@@ -62,38 +82,27 @@ public class ProductHalController {
         .orElse(ResponseEntity.notFound().build());
   }
 
-  @GetMapping(value = "/search/findByDescription", produces = MarketPlaceMediaTypes.V1_HAL_UTF8)
-  public ResponseEntity<PagedResources<?>> findByDescription(String description,
-      Pageable pageable) {
-
-    Page<Product> page =
-        productRepository.findByDescriptionContainingIgnoreCase(description, pageable);
-    return page.getTotalElements() != 0
-        ? ResponseEntity.ok(pagedResourcesAssembler.toResource(page, productResourceAssembler))
-        : ResponseEntity.ok(pagedResourcesAssembler.toEmptyResource(page, Product.class));
-
-  }
-
-  @GetMapping(value = "/search/findByTitle", produces = MarketPlaceMediaTypes.V1_HAL_UTF8)
-  public ResponseEntity<PagedResources<?>> findByTitle(String title, Pageable pageable) {
-
-    Page<Product> page = productRepository.findByTitleContainingIgnoreCase(title, pageable);
-    return page.getTotalElements() != 0
-        ? ResponseEntity.ok(pagedResourcesAssembler.toResource(page, productResourceAssembler))
-        : ResponseEntity.ok(pagedResourcesAssembler.toEmptyResource(page, Product.class));
-
-  }
-
   @PostMapping(produces = MarketPlaceMediaTypes.V1_HAL_UTF8)
   public ResponseEntity<?> newProduct(@RequestBody Product product) {
 
     try {
 
-      Product savedProduct = productRepository.save(product);
-      ProductResource productResource = productResourceAssembler.toResource(savedProduct);
+      ResponseEntity<?> responseEntity = null;
 
-      return ResponseEntity.created(new URI(productResource.getId().getHref()))
-          .body(productResource);
+      if (productExists(product)) {
+
+        responseEntity = ResponseEntity.status(HttpStatus.CONFLICT)
+            .body("Product with Id : " + product.getProductId()
+                + " already exists. Please send a PUT/PATCH request to update this product");
+      } else {
+
+        Product savedProduct = productRepository.save(product);
+        ProductResource productResource = productResourceAssembler.toResource(savedProduct);
+
+        responseEntity = ResponseEntity.created(new URI(productResource.getId().getHref()))
+            .body(productResource);
+      }
+      return responseEntity;
 
     } catch (Exception e) {
       return ResponseEntity.badRequest().body("Unable to create " + product);
@@ -111,17 +120,25 @@ public class ProductHalController {
 
       try {
 
-        Product savedProduct = productRepository.save(product);
-        ProductResource savedProductResource = productResourceAssembler.toResource(savedProduct);
+        if (productExists(product)) {
 
-        productResourceBatchResults.add(new ProductBatchResult<ProductResource>(HttpStatus.OK,
-            new URI(savedProductResource.getId().getHref()), HttpMethod.POST,
-            savedProductResource));
+          productResourceBatchResults
+              .add(new ProductBatchResult<Product>(HttpStatus.CONFLICT, HttpMethod.POST,
+                  "Product with Id : " + product.getProductId()
+                      + " already exists. Please send a PUT/PATCH request to update this product",
+                  product));
+        } else {
 
+          Product savedProduct = productRepository.save(product);
+          ProductResource savedProductResource = productResourceAssembler.toResource(savedProduct);
 
+          productResourceBatchResults.add(new ProductBatchResult<ProductResource>(HttpStatus.OK,
+              new URI(savedProductResource.getId().getHref()), HttpMethod.POST,
+              savedProductResource));
+        }
       } catch (Exception e) {
 
-        productResourceBatchResults.add(new ProductBatchResult<Product>(HttpStatus.CONFLICT,
+        productResourceBatchResults.add(new ProductBatchResult<Product>(HttpStatus.BAD_REQUEST,
             HttpMethod.POST, e.getMessage(), product));
       }
     }
